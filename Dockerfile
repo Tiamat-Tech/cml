@@ -85,7 +85,7 @@ RUN add-apt-repository universe --yes \
  && rm --recursive --force /var/lib/apt/lists/*
 
 # INSTALL DVC
-ARG DVC_VERSION=2
+ARG DVC_VERSION=3
 RUN cd /etc/apt/sources.list.d \
  && wget https://dvc.org/deb/dvc.list \
  && apt-get update \
@@ -111,7 +111,7 @@ RUN add-apt-repository universe --yes \
  && apt-get clean \
  && rm --recursive --force /var/lib/apt/lists/* \
  && npm config set user 0 \
- && npm install --global canvas@2 vega@5 vega-cli@5 vega-lite@5
+ && npm install --global canvas@2 vega@5 vega-cli@5 vega-lite@5.14.1
 
 # CONFIGURE RUNNER PATH
 ENV CML_RUNNER_PATH=/home/runner

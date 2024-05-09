@@ -183,7 +183,8 @@ class Gitlab {
       single,
       labels,
       name,
-      dockerVolumes = []
+      dockerVolumes = [],
+      env
     } = opts;
 
     const gpu = await gpuPresent();
@@ -192,13 +193,18 @@ class Gitlab {
       const bin = resolve(workdir, 'gitlab-runner');
       if (!(await fse.pathExists(bin))) {
         const arch = process.platform === 'darwin' ? 'darwin' : 'linux';
-        const url = `https://gitlab-runner-downloads.s3.amazonaws.com/v15.7.3/binaries/gitlab-runner-${arch}-amd64`;
+        const url = `https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-${arch}-amd64`;
         await download({ url, path: bin });
         await fs.chmod(bin, '777');
       }
 
       const { protocol, host } = new URL(this.repo);
       const { token } = await this.registerRunner({ tags: labels, name });
+
+      let waitTimeout = idleTimeout;
+      if (idleTimeout === 'never') {
+        waitTimeout = '0';
+      }
 
       let dockerVolumesTpl = '';
       dockerVolumes.forEach((vol) => {
@@ -210,14 +216,14 @@ class Gitlab {
         --url "${protocol}//${host}" \
         --name "${name}" \
         --token "${token}" \
-        --wait-timeout ${idleTimeout} \
+        --wait-timeout ${waitTimeout} \
         --executor "${IN_DOCKER ? 'shell' : 'docker'}" \
         --docker-image "iterativeai/cml:${gpu ? 'latest-gpu' : 'latest'}" \
         ${gpu ? '--docker-runtime nvidia' : ''} \
         ${dockerVolumesTpl} \
         ${single ? '--max-builds 1' : ''}`;
 
-      return spawn(command, { shell: true });
+      return spawn(command, { shell: true, env });
     } catch (err) {
       if (err.message === 'Forbidden')
         err.message +=
@@ -530,7 +536,10 @@ class Gitlab {
   }
 
   get branch() {
-    return process.env.CI_BUILD_REF_NAME;
+    if ('CI_COMMIT_BRANCH' in process.env) {
+      return process.env.CI_COMMIT_BRANCH;
+    }
+    return process.env.CI_COMMIT_REF_NAME;
   }
 
   get userEmail() {
